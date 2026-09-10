@@ -3,118 +3,220 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Tapliy — NFC Google Review Cards (Coming Soon)</title>
+<title>Tapliy — NFC Google Review Cards for Local Businesses</title>
 <!--
   ============================================================================
-  Tapliy — teaser/interest-capture page for a new, second product line
+  Tapliy — product/order page for a new, second product line
   ============================================================================
-  An NFC card for LOCAL BUSINESSES (not individual cardholders) that sends a
-  customer straight to leaving a Google review on a single tap. Product name
-  isn't decided yet, so this deliberately doesn't brand it as anything more
-  specific than "from Tapliy" -- swap the copy once a name is picked.
+  An NFC card for LOCAL BUSINESSES (not individual cardholders): a customer
+  taps their phone on the card and lands directly on the business's Google
+  review page. Deliberately a different visual "vibe" from the rest of the
+  site (light/bright/product-store feel, not Tapliy's dark minimal theme) --
+  a distinct request, since this targets a different buyer (a shop owner
+  making a quick purchase decision, not someone designing a personal card).
+
+  Product name isn't decided yet, so copy only credits "from Tapliy".
+
+  PRICING/CHECKOUT: no price has been set yet (still sourcing the physical
+  card from a supplier), so the order button currently submits to the same
+  interest-capture RPC as the old teaser page, copy-honest about that
+  ("Reserve your card" / "no payment required yet"), NOT a real purchase.
+  Search for "SWAP-IN-CHECKOUT" below for the exact spot to replace once a
+  price exists -- likely a Stripe Checkout redirect mirroring
+  supabase/functions/create-checkout-session, or if it's simple enough, a
+  Stripe Payment Link pasted straight into that button's href.
 
   Hosted at reviews.tapliy.com, a SEPARATE GitHub repo + GitHub Pages site
-  (not the main lezz0/tapliy repo) since it's a distinct product, easy to
-  spin out to its own domain later without touching the main site. See
-  SETUP.md for the repo/DNS details.
+  (lezz0/tapliy-reviews, not the main lezz0/tapliy repo) -- see SETUP.md.
 
-  Backend: supabase/review_card_interest.sql -- a dedicated table, kept
-  separate from the main `waitlist` table since this is a different product
-  for a different audience (businesses, not individual cardholders).
+  Backend: supabase/review_card_interest.sql.
   ============================================================================
 -->
 <style>
   :root{
-    --bg:#0A0A0B; --surface:#131316; --elevated:#1B1B1F;
-    --text:#F4F3EF; --dim:#8B8B92; --faint:#5A5A60;
-    --line:rgba(255,255,255,.08); --lineStrong:rgba(255,255,255,.16);
-    --accent:#CBA45C; --accentHi:#E7C983; --danger:#E5574B; --success:#5BC08C;
+    --bg:#FAFAF8; --surface:#FFFFFF; --elevated:#F3F2ED;
+    --text:#17171A; --dim:#5B5B62; --faint:#9A9A9F;
+    --line:rgba(15,15,20,.10); --lineStrong:rgba(15,15,20,.18);
+    --blue:#4285F4; --red:#EA4335; --yellow:#FBBC04; --green:#34A853;
+    --danger:#D93025;
     --mono:ui-monospace,Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     -webkit-font-smoothing:antialiased}
-  .wrap{max-width:460px;margin:0 auto;min-height:100vh;
-    padding:calc(env(safe-area-inset-top) + 40px) 22px 40px;
-    display:flex;flex-direction:column}
-  .brand{font-family:var(--mono);font-size:12px;letter-spacing:.35em;
-    color:var(--faint);text-transform:uppercase;text-decoration:none;display:inline-block}
-  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;
-    color:var(--accent);text-transform:uppercase;margin:34px 0 10px}
-  h1{font-size:30px;font-weight:600;margin:0 0 14px;line-height:1.2}
-  .sub{color:var(--dim);font-size:15px;margin:0 0 20px;line-height:1.6}
+  .wrap{max-width:480px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 24px) 22px 50px}
 
-  .stars{color:var(--accentHi);font-size:22px;letter-spacing:4px;margin-bottom:22px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}
+  .brand{font-family:var(--mono);font-size:12px;letter-spacing:.3em;
+    color:var(--faint);text-transform:uppercase;text-decoration:none}
+  .cta-top{font-size:13px;font-weight:700;color:var(--text);text-decoration:none}
 
-  .howList{list-style:none;margin:0 0 30px;padding:0;display:flex;flex-direction:column;gap:14px}
-  .howList li{display:flex;gap:12px;align-items:flex-start;font-size:14px;color:var(--dim);line-height:1.5}
-  .howNum{flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-family:var(--mono);
-    font-size:11px;color:var(--accentHi)}
+  .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
+    letter-spacing:.02em;color:var(--dim);text-transform:uppercase;margin-bottom:14px}
+  .dots{display:inline-flex;gap:3px}
+  .dot{width:7px;height:7px;border-radius:50%}
 
-  label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.18em;
-    text-transform:uppercase;color:var(--dim);margin:0 0 8px}
-  .field{margin-bottom:18px}
-  input{width:100%;background:var(--surface);border:1px solid var(--line);
-    color:var(--text);font-size:16px;border-radius:14px;padding:15px 16px;outline:none;
+  h1{font-size:34px;font-weight:800;line-height:1.12;letter-spacing:-.01em;margin:0 0 14px}
+  .sub{color:var(--dim);font-size:16px;line-height:1.6;margin:0 0 26px}
+
+  .primaryCta{display:block;width:100%;text-align:center;background:var(--text);color:#fff;
+    text-decoration:none;border:none;border-radius:14px;padding:17px;font-size:16px;
+    font-weight:700;cursor:pointer;margin-bottom:34px}
+
+  /* card mockup */
+  .cardMock{background:var(--elevated);border-radius:20px;padding:26px 24px;margin-bottom:34px;
+    display:flex;flex-direction:column;align-items:center;text-align:center}
+  .cardFace{width:100%;max-width:260px;background:var(--surface);border:1px solid var(--line);
+    border-radius:16px;padding:26px 20px;box-shadow:0 18px 34px rgba(20,20,25,.10)}
+  .gmark{font-size:30px;font-weight:800;margin-bottom:6px}
+  .gmark span:nth-child(1){color:var(--blue)}
+  .gmark span:nth-child(2){color:var(--red)}
+  .gmark span:nth-child(3){color:var(--yellow)}
+  .gmark span:nth-child(4){color:var(--blue)}
+  .gmark span:nth-child(5){color:var(--green)}
+  .gmark span:nth-child(6){color:var(--red)}
+  .cardFace .tag{font-size:13px;color:var(--dim);margin-bottom:8px}
+  .cardStars{color:var(--yellow);font-size:19px;letter-spacing:3px;margin-bottom:14px}
+  .nfcRow{display:flex;align-items:center;justify-content:center;gap:6px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--faint);
+    text-transform:uppercase;padding-top:12px;border-top:1px solid var(--line)}
+
+  .statsRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:36px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:14px 8px;text-align:center}
+  .stat b{display:block;font-size:13.5px;font-weight:700;margin-bottom:2px}
+  .stat span{font-size:11px;color:var(--faint)}
+
+  h2{font-size:21px;font-weight:800;letter-spacing:-.01em;margin:0 0 18px}
+
+  .howList{list-style:none;margin:0 0 40px;padding:0;display:flex;flex-direction:column;gap:16px}
+  .howList li{display:flex;gap:14px;align-items:flex-start;font-size:15px;color:var(--dim);
+    line-height:1.55;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:16px}
+  .howNum{flex:0 0 auto;width:26px;height:26px;border-radius:50%;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+  .howList li:nth-child(1) .howNum{background:var(--blue)}
+  .howList li:nth-child(2) .howNum{background:var(--red)}
+  .howList li:nth-child(3) .howNum{background:var(--green)}
+  .howList b{color:var(--text)}
+
+  .features{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:40px}
+  .feature{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .feature .fTitle{font-size:14px;font-weight:700;margin-bottom:4px}
+  .feature .fSub{font-size:12.5px;color:var(--faint);line-height:1.5}
+
+  .orderBox{background:var(--text);color:#fff;border-radius:20px;padding:28px 24px;margin-bottom:20px}
+  .orderBox h2{color:#fff}
+  .orderBox .sub{color:rgba(255,255,255,.65);margin-bottom:22px}
+
+  label{display:block;font-size:12px;font-weight:700;letter-spacing:.02em;
+    text-transform:uppercase;color:rgba(255,255,255,.6);margin:0 0 8px}
+  .field{margin-bottom:14px}
+  input{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+    color:#fff;font-size:16px;border-radius:12px;padding:14px 15px;outline:none;
     font-family:inherit}
-  input:focus{border-color:var(--lineStrong)}
-  input::placeholder{color:var(--faint)}
-  button{width:100%;margin-top:10px;background:var(--text);color:#111;
-    border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:600;
+  input:focus{border-color:rgba(255,255,255,.4)}
+  input::placeholder{color:rgba(255,255,255,.35)}
+  button.orderBtn{width:100%;margin-top:6px;background:#fff;color:var(--text);
+    border:none;border-radius:12px;padding:16px;font-size:15.5px;font-weight:800;
     cursor:pointer}
-  button:disabled{opacity:.5;cursor:default}
-  .msg{margin-top:18px;font-size:14px;line-height:1.5;display:none}
-  .msg.err{display:block;color:var(--danger)}
-  .foot{margin-top:auto;padding-top:36px;color:var(--faint);
-    font-family:var(--mono);font-size:11px;letter-spacing:.25em;text-transform:uppercase;text-align:center}
+  button.orderBtn:disabled{opacity:.5;cursor:default}
+  .orderNote{text-align:center;font-size:12px;color:rgba(255,255,255,.5);margin-top:12px}
+  .msg{margin-top:14px;font-size:13.5px;line-height:1.5;display:none;color:#FFD9D6}
+  .msg.err{display:block}
 
-  /* success state */
-  .done{display:none;text-align:center;padding-top:60px}
+  .foot{text-align:center;color:var(--faint);font-family:var(--mono);font-size:11px;
+    letter-spacing:.2em;text-transform:uppercase;padding-top:20px}
+
+  .done{display:none;text-align:center;padding:20px 0}
   .done.show{display:block}
-  .tick{width:66px;height:66px;border-radius:50%;margin:0 auto 22px;
-    border:1px solid var(--success);display:flex;align-items:center;justify-content:center;
-    color:var(--success);font-size:30px}
+  .tick{width:56px;height:56px;border-radius:50%;margin:0 auto 18px;background:var(--green);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px}
+  .done h2{color:#fff}
+  .done .sub{color:rgba(255,255,255,.65);margin:0}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <a href="https://tapliy.com" class="brand">Tapliy</a>
+    <div class="topbar">
+      <a href="https://tapliy.com" class="brand">Tapliy</a>
+      <a href="#order" class="cta-top">Get pricing →</a>
+    </div>
+
+    <div class="eyebrow">
+      <span class="dots"><span class="dot" style="background:var(--blue)"></span><span class="dot" style="background:var(--red)"></span><span class="dot" style="background:var(--yellow)"></span><span class="dot" style="background:var(--green)"></span></span>
+      For local businesses
+    </div>
+    <h1>Turn happy customers into 5-star reviews.</h1>
+    <p class="sub">An NFC card for your counter — a customer taps their phone and lands straight on your Google review page. No app, no searching, no typing your business name into Maps.</p>
+    <a href="#order" class="primaryCta">Get your card →</a>
+
+    <div class="cardMock">
+      <div class="cardFace">
+        <div class="gmark"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+        <div class="tag">Review us on Google</div>
+        <div class="cardStars">★★★★★</div>
+        <div class="nfcRow">))) tap to review</div>
+      </div>
+    </div>
+
+    <div class="statsRow">
+      <div class="stat"><b>0.4s</b><span>Tap to open</span></div>
+      <div class="stat"><b>No app</b><span>Just a phone</span></div>
+      <div class="stat"><b>Any phone</b><span>iOS + Android</span></div>
+    </div>
+
+    <h2>How it works</h2>
+    <ul class="howList">
+      <li><span class="howNum">1</span><span><b>Place the card</b> at your counter, till, or table</span></li>
+      <li><span class="howNum">2</span><span><b>A happy customer taps</b> their phone to it — no app to download</span></li>
+      <li><span class="howNum">3</span><span><b>They land on your Google review page</b>, ready to write</span></li>
+    </ul>
+
+    <h2>What you get</h2>
+    <div class="features">
+      <div class="feature"><div class="fTitle">Instant tap</div><div class="fSub">NFC-powered, with a QR code backup on every card</div></div>
+      <div class="feature"><div class="fTitle">Built to last</div><div class="fSub">Durable card, made for daily use at the counter</div></div>
+      <div class="feature"><div class="fTitle">Custom design</div><div class="fSub">Your logo and branding on the card</div></div>
+      <div class="feature"><div class="fTitle">Set up in minutes</div><div class="fSub">Point it at your Google Business review link once, done</div></div>
+    </div>
 
     <form id="form">
-      <div class="eyebrow">Coming soon from Tapliy</div>
-      <div class="stars">★★★★★</div>
-      <h1>One tap. A five-star review.</h1>
-      <p class="sub">A new NFC card for local businesses — a customer taps their phone at the counter and lands straight on your Google review page. No searching, no typing your name into Maps. Name's still TBD; get notified the moment it's ready.</p>
+      <div class="orderBox" id="order">
+        <h2>Get your card</h2>
+        <p class="sub">Pricing isn't public yet — pop your details in and we'll get you set up personally.</p>
 
-      <ul class="howList">
-        <li><span class="howNum">1</span> Place the card at your counter or till</li>
-        <li><span class="howNum">2</span> A happy customer taps their phone to it</li>
-        <li><span class="howNum">3</span> They land directly on your Google review page, ready to write</li>
-      </ul>
+        <div class="field">
+          <label for="business">Business name</label>
+          <input id="business" type="text" autocomplete="organization" placeholder="Your business" required />
+        </div>
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" type="text" autocomplete="name" placeholder="Your full name" required />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+        </div>
 
-      <div class="field">
-        <label for="business">Business name</label>
-        <input id="business" type="text" autocomplete="organization" placeholder="Your business" />
+        <!-- SWAP-IN-CHECKOUT: once pricing exists, replace this button's
+             click handler (or the whole form) with a real Stripe Checkout
+             redirect / Payment Link. Until then this submits to the
+             interest-capture RPC below, and copy stays honest that no
+             payment is being taken yet. -->
+        <button class="orderBtn" id="submit" type="submit">Reserve your card</button>
+        <p class="orderNote">No payment required yet — we'll follow up with pricing.</p>
+        <div id="err" class="msg"></div>
       </div>
-      <div class="field">
-        <label for="name">Your name</label>
-        <input id="name" type="text" autocomplete="name" placeholder="Your full name" required />
-      </div>
-      <div class="field">
-        <label for="email">Email</label>
-        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
-      </div>
-
-      <button id="submit" type="submit">Notify me when it launches</button>
-      <div id="err" class="msg"></div>
     </form>
 
     <div id="done" class="done">
-      <div class="tick">✓</div>
-      <h1>You're on the list</h1>
-      <p class="sub">We'll email you the moment this launches.</p>
+      <div class="orderBox">
+        <div class="tick">✓</div>
+        <h2>You're reserved</h2>
+        <p class="sub">We'll be in touch with pricing and next steps.</p>
+      </div>
     </div>
 
     <div class="foot">Powered by Tapliy</div>
@@ -136,10 +238,10 @@
     $("form").addEventListener("submit", async (e) => {
       e.preventDefault();
       $("err").className = "msg";
+      const business = $("business").value.trim();
       const name = $("name").value.trim();
       const email = $("email").value.trim();
-      const business = $("business").value.trim();
-      if(!name || !email){ return; }
+      if(!business || !name || !email){ return; }
 
       $("submit").disabled = true;
       $("submit").textContent = "Please wait…";
@@ -153,7 +255,7 @@
       if(error){
         showErr("Something went wrong. Please try again.");
         $("submit").disabled = false;
-        $("submit").textContent = "Notify me when it launches";
+        $("submit").textContent = "Reserve your card";
         return;
       }
 
