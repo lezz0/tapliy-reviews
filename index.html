@@ -17,19 +17,15 @@
 
   Product name isn't decided yet, so copy only credits "from Tapliy".
 
-  PRICING/CHECKOUT: no price has been set yet (still sourcing the physical
-  card from a supplier), so the order button currently submits to the same
-  interest-capture RPC as the old teaser page, copy-honest about that
-  ("Reserve your card" / "no payment required yet"), NOT a real purchase.
-  Search for "SWAP-IN-CHECKOUT" below for the exact spot to replace once a
-  price exists -- likely a Stripe Checkout redirect mirroring
-  supabase/functions/create-checkout-session, or if it's simple enough, a
-  Stripe Payment Link pasted straight into that button's href.
+  Pricing is real (SGD, one-time): 1 card = S$40, 2 cards = S$60. Both
+  buttons go to review-order.html?qty=1|2, which collects what's needed to
+  actually make the card work (the business's Google review link) and their
+  contact info, then hands off to Stripe Checkout via
+  create-review-card-checkout-session. Kept in sync by hand with
+  review-order.html and that function's PRICING table.
 
   Hosted at reviews.tapliy.com, a SEPARATE GitHub repo + GitHub Pages site
   (lezz0/tapliy-reviews, not the main lezz0/tapliy repo) -- see SETUP.md.
-
-  Backend: supabase/review_card_interest.sql.
   ============================================================================
 -->
 <style>
@@ -38,7 +34,6 @@
     --text:#17171A; --dim:#5B5B62; --faint:#9A9A9F;
     --line:rgba(15,15,20,.10); --lineStrong:rgba(15,15,20,.18);
     --blue:#4285F4; --red:#EA4335; --yellow:#FBBC04; --green:#34A853;
-    --danger:#D93025;
     --mono:ui-monospace,Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
@@ -106,35 +101,22 @@
   .feature .fTitle{font-size:14px;font-weight:700;margin-bottom:4px}
   .feature .fSub{font-size:12.5px;color:var(--faint);line-height:1.5}
 
-  .orderBox{background:var(--text);color:#fff;border-radius:20px;padding:28px 24px;margin-bottom:20px}
-  .orderBox h2{color:#fff}
-  .orderBox .sub{color:rgba(255,255,255,.65);margin-bottom:22px}
-
-  label{display:block;font-size:12px;font-weight:700;letter-spacing:.02em;
-    text-transform:uppercase;color:rgba(255,255,255,.6);margin:0 0 8px}
-  .field{margin-bottom:14px}
-  input{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
-    color:#fff;font-size:16px;border-radius:12px;padding:14px 15px;outline:none;
-    font-family:inherit}
-  input:focus{border-color:rgba(255,255,255,.4)}
-  input::placeholder{color:rgba(255,255,255,.35)}
-  button.orderBtn{width:100%;margin-top:6px;background:#fff;color:var(--text);
-    border:none;border-radius:12px;padding:16px;font-size:15.5px;font-weight:800;
-    cursor:pointer}
-  button.orderBtn:disabled{opacity:.5;cursor:default}
-  .orderNote{text-align:center;font-size:12px;color:rgba(255,255,255,.5);margin-top:12px}
-  .msg{margin-top:14px;font-size:13.5px;line-height:1.5;display:none;color:#FFD9D6}
-  .msg.err{display:block}
+  .pricing{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+  .plan{background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:22px 24px}
+  .plan.featured{border-color:var(--blue)}
+  .badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;
+    text-transform:uppercase;color:#fff;background:var(--blue);border-radius:999px;
+    padding:4px 10px;margin-bottom:10px}
+  .planRow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .planName{font-size:17px;font-weight:800}
+  .planPrice{font-size:22px;font-weight:800}
+  .planDesc{color:var(--dim);font-size:13.5px;margin:0 0 16px;line-height:1.5}
+  .planBtn{display:block;width:100%;text-align:center;background:var(--text);color:#fff;
+    text-decoration:none;border-radius:12px;padding:15px;font-size:15px;font-weight:800}
+  .plan.featured .planBtn{background:var(--blue)}
 
   .foot{text-align:center;color:var(--faint);font-family:var(--mono);font-size:11px;
     letter-spacing:.2em;text-transform:uppercase;padding-top:20px}
-
-  .done{display:none;text-align:center;padding:20px 0}
-  .done.show{display:block}
-  .tick{width:56px;height:56px;border-radius:50%;margin:0 auto 18px;background:var(--green);
-    display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px}
-  .done h2{color:#fff}
-  .done .sub{color:rgba(255,255,255,.65);margin:0}
 </style>
 </head>
 <body>
@@ -182,86 +164,28 @@
       <div class="feature"><div class="fTitle">Set up in minutes</div><div class="fSub">Point it at your Google Business review link once, done</div></div>
     </div>
 
-    <form id="form">
-      <div class="orderBox" id="order">
-        <h2>Get your card</h2>
-        <p class="sub">Pricing isn't public yet — pop your details in and we'll get you set up personally.</p>
-
-        <div class="field">
-          <label for="business">Business name</label>
-          <input id="business" type="text" autocomplete="organization" placeholder="Your business" required />
+    <h2 id="order">Get your card</h2>
+    <div class="pricing">
+      <div class="plan">
+        <div class="planRow">
+          <span class="planName">1 card</span>
+          <span class="planPrice">S$40</span>
         </div>
-        <div class="field">
-          <label for="name">Your name</label>
-          <input id="name" type="text" autocomplete="name" placeholder="Your full name" required />
-        </div>
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
-        </div>
-
-        <!-- SWAP-IN-CHECKOUT: once pricing exists, replace this button's
-             click handler (or the whole form) with a real Stripe Checkout
-             redirect / Payment Link. Until then this submits to the
-             interest-capture RPC below, and copy stays honest that no
-             payment is being taken yet. -->
-        <button class="orderBtn" id="submit" type="submit">Reserve your card</button>
-        <p class="orderNote">No payment required yet — we'll follow up with pricing.</p>
-        <div id="err" class="msg"></div>
+        <p class="planDesc">One NFC review card for your counter.</p>
+        <a class="planBtn" href="review-order.html?qty=1">Buy now →</a>
       </div>
-    </form>
-
-    <div id="done" class="done">
-      <div class="orderBox">
-        <div class="tick">✓</div>
-        <h2>You're reserved</h2>
-        <p class="sub">We'll be in touch with pricing and next steps.</p>
+      <div class="plan featured">
+        <span class="badge">Save S$20</span>
+        <div class="planRow">
+          <span class="planName">2 cards</span>
+          <span class="planPrice">S$60</span>
+        </div>
+        <p class="planDesc">One for the counter, one as a spare — or split across two locations.</p>
+        <a class="planBtn" href="review-order.html?qty=2">Buy now →</a>
       </div>
     </div>
 
     <div class="foot">Powered by Tapliy</div>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL  = "https://idoxkgzcamqvknnbnbbp.supabase.co";
-    const SUPABASE_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkb3hrZ3pjYW1xdmtubmJuYmJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NDY0ODUsImV4cCI6MjEwMjEyMjQ4NX0.AD-viN1J9hM9sG0a4Mq8DNcO5YqhMhFhIrOmcHFcEU0";
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-    const $ = (id) => document.getElementById(id);
-
-    function showErr(text){
-      $("err").textContent = text;
-      $("err").className = "msg err";
-    }
-
-    $("form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      $("err").className = "msg";
-      const business = $("business").value.trim();
-      const name = $("name").value.trim();
-      const email = $("email").value.trim();
-      if(!business || !name || !email){ return; }
-
-      $("submit").disabled = true;
-      $("submit").textContent = "Please wait…";
-
-      const { error } = await sb.rpc("join_review_card_interest", {
-        p_name: name,
-        p_email: email,
-        p_business_name: business,
-      });
-
-      if(error){
-        showErr("Something went wrong. Please try again.");
-        $("submit").disabled = false;
-        $("submit").textContent = "Reserve your card";
-        return;
-      }
-
-      $("form").style.display = "none";
-      $("done").classList.add("show");
-    });
-  </script>
 </body>
 </html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tapliy — Payment received</title>
+<!--
+  Stripe Checkout's success_url points here (see
+  create-review-card-checkout-session), with ?id=<order id> appended.
+  Unlike the main Tapliy product there's no public page tied to this order to
+  poll for (it's a physical card, not a website), so this is just a static
+  confirmation -- the stripe-webhook function flips is_paid on the order
+  row in the background.
+-->
+<style>
+  :root{
+    --bg:#FAFAF8; --text:#17171A; --dim:#5B5B62; --faint:#9A9A9F;
+    --green:#34A853; --mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px;margin:0 auto;min-height:100vh;
+    padding:calc(env(safe-area-inset-top) + 40px) 22px 40px;
+    display:flex;flex-direction:column;text-align:center}
+  .brand{font-family:var(--mono);font-size:12px;letter-spacing:.3em;
+    color:var(--faint);text-transform:uppercase}
+  .center{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center}
+  .tick{width:66px;height:66px;border-radius:50%;margin:0 0 22px;background:var(--green);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px}
+  h1{font-size:24px;font-weight:800;margin:0 0 10px}
+  .sub{color:var(--dim);font-size:15px;line-height:1.6;margin:0 0 28px;max-width:340px}
+  .btn{display:inline-block;background:var(--text);color:#fff;text-decoration:none;
+    border-radius:14px;padding:15px 28px;font-size:15px;font-weight:700}
+  .foot{margin-top:auto;padding-top:36px;color:var(--faint);
+    font-family:var(--mono);font-size:11px;letter-spacing:.25em;text-transform:uppercase}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">Tapliy</div>
+    <div class="center">
+      <div class="tick">✓</div>
+      <h1>Payment received</h1>
+      <p class="sub">Your card is on its way. We'll email you once it ships.</p>
+      <a class="btn" href="https://tapliy.com">Back to Tapliy</a>
+    </div>
+    <div class="foot">Powered by Tapliy</div>
+  </div>
+</body>
+</html>

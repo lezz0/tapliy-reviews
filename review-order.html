@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tapliy — Order your Google review card</title>
+<!--
+  ============================================================================
+  Tapliy — Google review card checkout / order intake
+  ============================================================================
+  Reached from reviews-teaser.html's pricing section (?qty=1 or ?qty=2).
+  Collects what's needed to actually make the card work (the business's own
+  Google review link) plus contact info, then POSTs to
+  create-review-card-checkout-session, which saves this as an unpaid draft
+  (see supabase/review_card_orders.sql) and returns a Stripe Checkout URL to
+  redirect to. stripe-webhook flips is_paid = true once Stripe confirms
+  payment. Same two-step shape as plans.html -> order.html for the main
+  Tapliy product.
+
+  Pricing (SGD, one-time): 1 card = S$40, 2 cards = S$60 -- kept in sync by
+  hand with reviews-teaser.html (display) and create-review-card-checkout-
+  session (what's actually charged).
+  ============================================================================
+-->
+<style>
+  :root{
+    --bg:#FAFAF8; --surface:#FFFFFF; --elevated:#F3F2ED;
+    --text:#17171A; --dim:#5B5B62; --faint:#9A9A9F;
+    --line:rgba(15,15,20,.10); --lineStrong:rgba(15,15,20,.18);
+    --blue:#4285F4; --danger:#D93025;
+    --mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:480px;margin:0 auto;min-height:100vh;
+    padding:calc(env(safe-area-inset-top) + 24px) 22px 50px;
+    display:flex;flex-direction:column}
+  .brand{font-family:var(--mono);font-size:12px;letter-spacing:.3em;
+    color:var(--faint);text-transform:uppercase;text-decoration:none;display:inline-block;margin-bottom:26px}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
+  .sub{color:var(--dim);font-size:15px;margin:0 0 24px;line-height:1.5}
+
+  .qtyBox{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:18px 20px;margin-bottom:26px}
+  .qtyRow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+  .qtyName{font-size:16px;font-weight:800}
+  .qtyPrice{font-size:16px;font-weight:800;color:var(--blue)}
+  .qtyDesc{color:var(--dim);font-size:13.5px;margin:0}
+  .qtyBox a{color:var(--blue);font-size:12.5px;text-decoration:underline;font-weight:600}
+
+  label{display:block;font-size:12px;font-weight:700;letter-spacing:.02em;
+    text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+  .hint{color:var(--faint);font-size:12.5px;margin:6px 2px 0;line-height:1.4}
+  .field{margin-bottom:18px}
+  input{width:100%;background:var(--surface);border:1px solid var(--line);
+    color:var(--text);font-size:16px;border-radius:14px;padding:15px 16px;outline:none;
+    font-family:inherit}
+  input:focus{border-color:var(--lineStrong)}
+  input::placeholder{color:var(--faint)}
+  button{width:100%;margin-top:10px;background:var(--text);color:#fff;
+    border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;
+    cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .msg{margin-top:18px;font-size:14px;line-height:1.5;display:none}
+  .msg.err{display:block;color:var(--danger)}
+  .foot{margin-top:auto;padding-top:36px;color:var(--faint);
+    font-family:var(--mono);font-size:11px;letter-spacing:.25em;text-transform:uppercase;text-align:center}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="https://reviews.tapliy.com" class="brand">Tapliy</a>
+
+    <h1>Order your card</h1>
+    <p class="sub">You'll pay on the next screen — nothing is charged until then.</p>
+
+    <div class="qtyBox">
+      <div class="qtyRow">
+        <span class="qtyName" id="qtyName">1 card</span>
+        <span class="qtyPrice" id="qtyPrice">S$40</span>
+      </div>
+      <p class="qtyDesc" id="qtyDesc">One NFC review card.</p>
+      <a href="reviews-teaser.html#order" id="changeQty">Change</a>
+    </div>
+
+    <form id="form">
+      <div class="field">
+        <label for="business">Business name</label>
+        <input id="business" type="text" autocomplete="organization" placeholder="Your business" required />
+      </div>
+
+      <div class="field">
+        <label for="reviewLink">Your Google review link</label>
+        <input id="reviewLink" type="url" placeholder="https://g.page/r/..." required />
+        <p class="hint">This is what the card will be programmed to open. Find it in your Google Business Profile under "Get more reviews".</p>
+      </div>
+
+      <div class="field">
+        <label for="name">Your name</label>
+        <input id="name" type="text" autocomplete="name" placeholder="Your full name" required />
+      </div>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+      </div>
+
+      <button id="submit" type="submit">Continue to payment</button>
+      <div id="err" class="msg"></div>
+    </form>
+
+    <div class="foot">Powered by Tapliy</div>
+  </div>
+
+  <script>
+    const SUPABASE_URL  = "https://idoxkgzcamqvknnbnbbp.supabase.co";
+    const SUPABASE_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkb3hrZ3pjYW1xdmtubmJuYmJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NDY0ODUsImV4cCI6MjEwMjEyMjQ4NX0.AD-viN1J9hM9sG0a4Mq8DNcO5YqhMhFhIrOmcHFcEU0";
+    const CHECKOUT_FN_URL = SUPABASE_URL + "/functions/v1/create-review-card-checkout-session";
+
+    // Display-only -- kept in sync by hand with reviews-teaser.html and the
+    // real prices in create-review-card-checkout-session.
+    const PRICING = {
+      1: { name: "1 card", price: "S$40", desc: "One NFC review card." },
+      2: { name: "2 cards", price: "S$60", desc: "Two NFC review cards — save S$20 over buying separately." },
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    let qty = parseInt(params.get("qty"), 10);
+    if(qty !== 1 && qty !== 2) qty = 1;
+
+    const p = PRICING[qty];
+    $("qtyName").textContent = p.name;
+    $("qtyPrice").textContent = p.price;
+    $("qtyDesc").textContent = p.desc;
+
+    function showErr(text){
+      $("err").textContent = text;
+      $("err").className = "msg err";
+    }
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("err").className = "msg";
+
+      const business = $("business").value.trim();
+      const reviewLink = $("reviewLink").value.trim();
+      const name = $("name").value.trim();
+      const email = $("email").value.trim();
+      if(!business || !reviewLink || !name || !email){ return; }
+
+      $("submit").disabled = true;
+      $("submit").textContent = "Please wait…";
+
+      try{
+        const resp = await fetch(CHECKOUT_FN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON,
+            "Authorization": "Bearer " + SUPABASE_ANON,
+          },
+          body: JSON.stringify({
+            business_name: business,
+            review_link: reviewLink,
+            contact_name: name,
+            contact_email: email,
+            quantity: qty,
+          }),
+        });
+        const data = await resp.json();
+        if(!resp.ok || !data.url){
+          throw new Error(data.error || "Something went wrong. Please try again.");
+        }
+        window.location.href = data.url;
+      } catch(err){
+        showErr(err.message || "Something went wrong. Please try again.");
+        $("submit").disabled = false;
+        $("submit").textContent = "Continue to payment";
+      }
+    });
+  </script>
+</body>
+</html>
